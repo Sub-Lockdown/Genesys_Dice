@@ -1,6 +1,7 @@
 import random
 import sys
 import re
+import argparse
 
 ### Gensys Dice Symbols ###
 SUCCESS = {"success": 1}
@@ -79,7 +80,8 @@ class DicePool(object):
             "advantage": 0,
             "triumph":   0,
             "despair":   0,
-            "custom":    []
+            "custom":    [],
+            "custom_mod": 0
         }
 
     def roll(self):
@@ -133,23 +135,40 @@ class Die(object):
         else:
             return random.choice(DIE_OPTIONS[self.die_type[0]])
 
-def roll_string(pool, diff_pool="simple", upgrades=0):
+def roll_string(info):
     """
     Creates a dice pool from an input string, rolls it and returns the result.
 
     input: A string representing a dice pool.
     output: The result of the dice pool when rolled.
     """
-    diff_pool = DIFFICULTY[diff_pool.lower()]
-    upgrades = int(upgrades)
-    if upgrades > len(diff_pool):
-        diff_pool = "c"*len(diff_pool) + "d"*(upgrades - len(diff_pool))
-    else:
-        diff_pool = "c"*upgrades + "d"*(len(diff_pool) - upgrades)
-    
-    pool = DicePool(pool + diff_pool)
+    diff_pool = DIFFICULTY[info['difficulty'].lower()]
+    if info['upgrade'] != None:
+        upgrades = info['upgrade']
+        if upgrades > len(diff_pool):
+            diff_pool = "c"*len(diff_pool) + "d"*(upgrades - len(diff_pool))
+        else:
+            diff_pool = "c"*upgrades + "d"*(len(diff_pool) - upgrades)
+    pool = DicePool(info["pool"] + str(diff_pool))
     pool.roll()
-    return pool.get_values()
+    return (pool.get_values(), info['symbols'])
+
+def adding_symbols(results):
+    final_pool, symbols = results
+    options = {"suc" : 'success', 
+        "fai" : 'failure', 
+        "adv" : 'advantage',
+        "thr" : 'threat',
+        "tri":  'triumph',
+        "des": 'despair'}
+    if symbols:
+        for i in symbols:
+            try:
+                final_pool['custom_mod'] += int(i)
+            except:
+                final_pool[options[i]] += 1
+    return final_pool
+
 
 def display_results(results):
     """
@@ -160,9 +179,10 @@ def display_results(results):
     input: A dictionary of results.
     output: Some printed information about the roll.
     """
-
-    if results['success'] < 1:
+    if results['success'] < 0:
         print("The roll failed with {failure} failure.".format(**results))
+    elif results['success'] == 0:
+        print("The roll failed with {success} success!".format(**results))
     else:
         print("The roll succeeded with {success} success!".format(**results))
 
@@ -175,16 +195,37 @@ def display_results(results):
         print("The roll generated {despair} despair..".format(**results))
     if results['triumph'] > 0:
         print("The roll generated {triumph} triumph!".format(**results))
+    
+    if results['custom']:
+        custom_total = 0
+        for custom_roll in results['custom']:
+            if len(results['custom']) == 1 and results['custom_mod'] > 0:
+                print("Your %s-sided die rolled %d, with a %d modifier, for a total of %d." % (custom_roll[0][1:], custom_roll[1], results['custom_mod'], (custom_roll[1] + results['custom_mod'])))
+                break
+            print("Your %s-sided die rolled %d." % (custom_roll[0][1:], custom_roll[1]))
+            custom_total += custom_roll[1]
+        if len(results['custom']) > 1 and results['custom_mod'] > 0:
+            print("The total of your dice roll is %s, with a %d modifier." % ((custom_total + results['custom_mod']), results['custom_mod']))
+        elif len(results['custom']) > 1:
+            print("The total of your dice roll is %s." % ((custom_total + results['custom_mod'])))
 
-    for custom_roll in results['custom']:
-        print("Your %s-sided die rolled %d." % (custom_roll[0][1:], custom_roll[1]))
 
-if __name__ == "__main__":
-    if len(sys.argv) == 2 and len(sys.argv[1]) > 0:
-        display_results(roll_string(sys.argv[1]))
-    elif len(sys.argv) == 3 and len(sys.argv[1]) > 0:
-        display_results(roll_string(sys.argv[1], sys.argv[2]))
-    elif len(sys.argv) == 4 and len(sys.argv[1]) > 0:
-        display_results(roll_string(sys.argv[1], sys.argv[2], sys.argv[3]))
+def main(arguments):
+    args = arguments.parse_args()
+    if vars(args)['difficulty'] in DIFFICULTY.keys():
+        display_results(adding_symbols(roll_string(vars(args))))
     else:
-        print("Please check your input, and confirm you are using proper arguments")
+        print("Error, incorrect difficulty selected")   
+
+def parser():
+    my_parser = argparse.ArgumentParser()
+    my_parser.add_argument('-pool', action='store', type=str, required=True, help='The pool of dice to roll')
+    my_parser.add_argument('-difficulty', action='store', default='simple', type=str, help='The difficulty pool, set to Simple (-) as default')
+    my_parser.add_argument('-upgrade', action='store', type=int, help="The number of difficulty dice to upgrade")
+    my_parser.add_argument('-symbols', nargs='+', action='store', help='Add additional symbols to your results')
+    return my_parser
+
+if __name__ == '__main__':
+    arguments = parser()
+    main(arguments)
+
