@@ -3,7 +3,7 @@ Genesys Dice Roller
 
 A Python utility used for rolling special dice used in the Genesys roleplaying game, as well as standard polygon dice. Intended to be used in a future project, can be used as a standalone utlity.
 
-Shoutout to stephenswat, whose Edge of the Empire ultility I shamelessly pulled to make this.
+Shoutout to https://github.com/stephenswat/Edge-of-the-Empire-dice, whose Edge of the Empire ultility I shamelessly pulled to make this.
 
 Usage
 -----
